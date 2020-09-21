@@ -1,0 +1,357 @@
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(data.table)
+library(lsmeans)
+int <- read.csv("interior")
+bor <- read.csv("borde")
+int <- data.table(int)
+bor <- data.table(bor)
+bor[, Zona:= rep("Borde", 100)]
+int[, Zona:= rep("Interior", 30)]
+bor$Estrato <- as.factor(bor$Estrato)
+int$Estrato <- as.factor(int$Estrato)
+full <- rbind(int, bor)
+unique(full$Actividad)
+full$Actividad <- gsub(" Alimentación", "Alimentación",full$Actividad)
+full$Actividad <- gsub("Anidación ", "Anidación",full$Actividad)
+full$Actividad <- gsub(" Vocalización", "Vocalización",full$Actividad)
+full$Especie <- gsub("Trogon viridis ", "Trogon viridis",full$Especie)
+full$Especie <- gsub("Amazilia tzcatl", "Amazilia tzacatl",full$Especie)
+full$Especie <- gsub("Amazilia tzcatl ", "Amazilia tzacatl",full$Especie)
+
+esp
+Momotus subrufescens
+Momotus subrufescens
+Trogon viridis
+Trogon viridis 
+Amazilia tzacatl
+Amazilia tzcatl
+Amazilia tzcatl 
+Camphylorrynchus zonatus 
+Campylorrynhus zonatus 
+Crothopaga ani
+Crothophaga ani
+Chrotophaga ani 
+Chrotophaga major
+Crothophaga major 
+Crothophaga major
+Coccyzus americanus 
+Columbina talpacoti
+Conirostrum leucogenys
+Conirostrum leucogenys 
+Galbula ruficauda
+Galbula ruficauda 
+Megarrynchus pitangua 
+Megarynchus pitangua 
+Myiodinastes maculatus
+Myiodynastes maculatus 
+Patagioenas cayannensis
+Patagioenas cayannesis
+Ramphocelus dimidiatus
+Ramphoselus dimidiatus 
+Sicalis flaveola
+Sicalis flaveola 
+Todirostrum cinereum 
+Todirostrum cinereum
+
+borde <- bosque[c(1:21),]
+Interior <- bosque[c(22:36),]
+bosque <- full %>% group_by(Zona, Estrato, Actividad) %>% summarise(Individuos = sum(Ind), .groups = "drop")
+borde <- borde %>% mutate(Proporcion = Individuos/126)
+interior <- Interior %>% mutate(Proporcion = Individuos/35)
+bosque <- rbind(interior, borde)
+
+  Zona     Proporcion Desviacion
+  <chr>         <dbl>      <dbl>
+1 Borde        0.0476         NA
+2 Interior     0.0667         NA
+> m1 <- lm(Proporcion ~ Zona + Estrato + Actividad, bosque)
+
+m2 <- gls(Proporcion ~ Zona + Estrato + Actividad, weights = varIdent(form=~1|Zona), datos) #Modela la varianza cada grupo tiene su propia varianza
+
+
+> shapiro.test(resid(m1))
+
+	Shapiro-Wilk normality test
+
+data:  resid(m1)
+W = 0.97891, p-value = 0.7084
+
+> var.test(borde[, 5], interior[, 5])
+Error in is.finite(x) : default method not implemented for type 'list'
+> args(var.test)
+function (x, ...) 
+NULL
+> help(var.test)
+> var.test(borde$Proporcion, interior$Proporcion)
+
+	F test to compare two variances
+
+data:  borde$Proporcion and interior$Proporcion
+F = 0.93009, num df = 20, denom df = 14, p-value = 0.8615
+alternative hypothesis: true ratio of variances is not equal to 1
+95 percent confidence interval:
+ 0.3270723 2.4210306
+sample estimates:
+ratio of variances 
+         0.9300926 
+
+> anova(m1)
+Analysis of Variance Table
+
+Response: Proporcion
+          Df   Sum Sq   Mean Sq F value   Pr(>F)   
+Zona       1 0.003175 0.0031746  2.5708 0.120932   
+Estrato    4 0.008681 0.0021703  1.7575 0.167803   
+Actividad  4 0.022578 0.0056446  4.5710 0.006272 **
+Residuals 26 0.032106 0.0012349                    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+> TukeyHSD(a)
+  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = m1)
+
+$Zona
+                     diff          lwr       upr     p adj
+Interior-Borde 0.01904762 -0.005371462 0.0434667 0.1209324
+
+$Estrato
+            diff         lwr         upr     p adj
+2-1 -0.014200680 -0.06746044 0.039059081 0.9338868
+3-1  0.006434240 -0.04682552 0.059694001 0.9964250
+4-1 -0.039266818 -0.09651934 0.017985705 0.2900549
+5-1 -0.019274376 -0.07428082 0.035732068 0.8410040
+3-2  0.020634921 -0.03081890 0.072088738 0.7654965
+4-2 -0.025066138 -0.08064261 0.030510337 0.6811253
+5-2 -0.005073696 -0.05833346 0.048186065 0.9985825
+4-3 -0.045701058 -0.10127753 0.009875417 0.1449237
+5-3 -0.025708617 -0.07896838 0.027551144 0.6247735
+5-4  0.019992441 -0.03726008 0.077244964 0.8426420
+
+$Actividad
+                                  diff          lwr        upr     p adj
+Anidación-Alimentación    -0.007372945 -0.059233518 0.04448763 0.9933159
+Forrajeo-Alimentación      0.013791623 -0.038068951 0.06565220 0.9344689
+Percha-Alimentación        0.054061248  0.006778452 0.10134404 0.0192397**
+Vocalización-Alimentación -0.002728140 -0.071333230 0.06587695 0.9999555
+Forrajeo-Anidación         0.021164567 -0.033841877 0.07617101 0.7910762
+Percha-Anidación           0.061434192  0.010720756 0.11214763 0.0119620**
+Vocalización-Anidación     0.004644804 -0.066368210 0.07565782 0.9996780
+Percha-Forrajeo            0.040269625 -0.010443811 0.09098306 0.1689842
+Vocalización-Forrajeo     -0.016519763 -0.087532778 0.05449325 0.9587759
+Vocalización-Percha       -0.056789388 -0.124531487 0.01095271 0.1325629
+
+m2 <- gls(Proporcion ~ Zona + Estrato + Actividad, weights = varIdent(form=~1|Zona), datos)
+
+anova(m2)
+Denom. DF: 26 
+            numDF   F-value p-value
+(Intercept)     1 115.94833  <.0001
+Zona            1   2.15247  0.1543
+Estrato         4   2.83915  0.0445*
+Actividad       4  10.33983  <.0001***
+
+AIC(m1, m2)
+   df       AIC
+m1 11 -128.6362
+m2 12  -63.4452
+Warning message:
+In AIC.default(m1, m2) :
+  models are not all fitted to the same number of observations> anova(m2)
+Denom. DF: 29 
+            numDF   F-value p-value
+(Intercept)     1 103.07477  <.0001
+Zona            1   1.89986  0.1786
+Estrato         1   5.43714  0.0269
+Actividad       4   8.90400  0.0001
+
+
+con <- emmeans(m2, ~Actividad, method = "tukey")
+contrast(con)
+ contrast            estimate      SE   df t.ratio p.value
+ Alimentación effect -0.01038 0.00889 17.1 -1.168  0.3235 
+ Anidación effect    -0.02874 0.00921 15.2 -3.122  0.0173* 
+ Forrajeo effect      0.00993 0.01078 20.4  0.921  0.3678 
+ Percha effect        0.05127 0.00879 17.8  5.835  0.0001* 
+ Vocalización effect -0.02207 0.01232 13.1 -1.792  0.1605 
+
+Results are averaged over the levels of: Zona, Estrato 
+Degrees-of-freedom method: satterthwaite 
+P value adjustment: fdr method for 5 tests
+
+con <- emmeans(m2, ~Estrato, method = "tukey")
+contrast(con)
+ contrast estimate      SE   df t.ratio p.value
+ 1 effect  0.01170 0.00973 17.8  1.202  0.3063 
+ 2 effect  0.00546 0.00899 16.7  0.608  0.5515 
+ 3 effect  0.02337 0.00959 18.8  2.438  0.1063 
+ 4 effect -0.02186 0.00995 16.6 -2.197  0.1063 
+ 5 effect -0.01867 0.00979 17.7 -1.907  0.1216 
+
+Results are averaged over the levels of: Zona, Actividad 
+Degrees-of-freedom method: satterthwaite 
+P value adjustment: fdr method for 5 tests
+
+
+con <- emmeans(m2, ~Actividad*Estrato, method = "tukey")
+contrast(con)
+ contrast              estimate     SE   df t.ratio p.value
+ Alimentación 1 effect  0.00132 0.0129 18.2  0.102  0.9292 
+ Anidación 1 effect    -0.01705 0.0130 18.0 -1.315  0.3418 
+ Forrajeo 1 effect      0.02163 0.0138 16.6  1.568  0.2425 
+ Percha 1 effect        0.06296 0.0129 18.2  4.883  0.0015** 
+ Vocalización 1 effect -0.01038 0.0171 15.5 -0.607  0.6577 
+ Alimentación 2 effect -0.00492 0.0129 17.4 -0.380  0.7699 
+ Anidación 2 effect    -0.02328 0.0134 15.5 -1.740  0.1957 
+ Forrajeo 2 effect      0.01539 0.0135 18.7  1.137  0.4073 
+ Percha 2 effect        0.05673 0.0129 17.5  4.389  0.0031** 
+ Vocalización 2 effect -0.01661 0.0147 14.1 -1.131  0.4073 
+ Alimentación 3 effect  0.01299 0.0131 17.5  0.991  0.4655 
+ Anidación 3 effect    -0.00537 0.0131 17.6 -0.410  0.7699 
+ Forrajeo 3 effect      0.03331 0.0157 20.6  2.126  0.0954. 
+ Percha 3 effect        0.07464 0.0131 17.4  5.677  0.0006** 
+ Vocalización 3 effect  0.00130 0.0144 14.1  0.090  0.9292 
+ Alimentación 4 effect -0.03224 0.0136 15.6 -2.375  0.0867. 
+ Anidación 4 effect    -0.05060 0.0137 15.1 -3.705  0.0131** 
+ Forrajeo 4 effect     -0.01193 0.0157 20.3 -0.757  0.6020 
+ Percha 4 effect        0.02941 0.0132 17.1  2.230  0.0896. 
+ Vocalización 4 effect -0.04393 0.0145 13.7 -3.024  0.0388 
+ Alimentación 5 effect -0.02905 0.0129 18.2 -2.243  0.0896. 
+ Anidación 5 effect    -0.04742 0.0135 15.9 -3.524  0.0142** 
+ Forrajeo 5 effect     -0.00874 0.0133 18.7 -0.658  0.6481 
+ Percha 5 effect        0.03259 0.0130 18.1  2.514  0.0772. 
+ Vocalización 5 effect -0.04074 0.0172 15.3 -2.371  0.0867. 
+
+Results are averaged over the levels of: Zona 
+Degrees-of-freedom method: satterthwaite 
+P value adjustment: fdr method for 25 tests 
+
+
+m3 <- gls(Proporcion ~ Zona + Estrato + Actividad, weights = varIdent(form=~1|Estrato), datos)
+m4 <- gls(Proporcion ~ Zona + Estrato + Actividad, weights = varIdent(form=~1|Actividad), datos)
+
+AIC(m2,m3,m4)
+   df       AIC
+m2 12 -63.44520
+m3 15 -54.44105
+m4 15 -57.52751
+
+anova(m3)
+Denom. DF: 26 
+            numDF  F-value p-value
+(Intercept)     1 82.86237  <.0001
+Zona            1  2.56505  0.1213
+Estrato         4  3.26690  0.0269**
+Actividad       4  4.55575  0.0064**
+
+con <- emmeans(m3, ~Actividad, method = "tukey")
+> contrast(con)
+ contrast            estimate      SE    df t.ratio p.value
+ Alimentación effect -0.01046 0.01004 10.98 -1.041  0.4824 
+ Anidación effect    -0.01957 0.01088  9.64 -1.798  0.2588 
+ Forrajeo effect      0.00624 0.01159 13.76  0.538  0.5991 
+ Percha effect        0.03753 0.00923  6.96  4.064  0.0242 
+ Vocalización effect -0.01374 0.01399  3.68 -0.982  0.4824 
+
+Results are averaged over the levels of: Zona, Estrato 
+Degrees-of-freedom method: satterthwaite 
+P value adjustment: fdr method for 5 tests
+
+con <- emmeans(m3, ~Estrato, method = "tukey")
+> contrast(con)
+ contrast estimate      SE   df t.ratio p.value
+ 1 effect  0.01476 0.01247 7.89  1.184  0.4516 
+ 2 effect -0.00164 0.01209 8.97 -0.135  0.8954 
+ 3 effect  0.02470 0.01157 7.94  2.134  0.1640 
+ 4 effect -0.02962 0.00844 4.99 -3.509  0.0859** 
+ 5 effect -0.00820 0.01234 5.53 -0.665  0.6661 
+
+Results are averaged over the levels of: Zona, Actividad 
+Degrees-of-freedom method: satterthwaite 
+P value adjustment: fdr method for 5 tests
+
+
+con <- emmeans(m3, ~Actividad*Estrato, method = "tukey")
+> contrast(con)
+ contrast              estimate     SE    df t.ratio p.value
+ Alimentación 1 effect  0.00430 0.0156 12.93  0.276  0.8555 
+ Anidación 1 effect    -0.00481 0.0156 12.27 -0.309  0.8555 
+ Forrajeo 1 effect      0.02099 0.0174 15.02  1.207  0.4850 
+ Percha 1 effect        0.05229 0.0154 12.18  3.396  0.0651** 
+ Vocalización 1 effect  0.00102 0.0197  8.02  0.052  0.9600 
+ Alimentación 2 effect -0.01209 0.0158 13.17 -0.766  0.6724 
+ Anidación 2 effect    -0.02120 0.0170 13.67 -1.247  0.4850 
+ Forrajeo 2 effect      0.00460 0.0162 13.43  0.284  0.8555 
+ Percha 2 effect        0.03590 0.0154 11.24  2.332  0.1852 
+ Vocalización 2 effect -0.01537 0.0181  7.57 -0.848  0.6598 
+ Alimentación 3 effect  0.01424 0.0154 15.00  0.927  0.6143 
+ Anidación 3 effect     0.00513 0.0153 14.21  0.337  0.8555 
+ Forrajeo 3 effect      0.03094 0.0175 20.08  1.772  0.2860 
+ Percha 3 effect        0.06223 0.0153 14.57  4.078  0.0262** 
+ Vocalización 3 effect  0.01096 0.0173  9.03  0.635  0.7130 
+ Alimentación 4 effect -0.04008 0.0140  7.96 -2.868  0.1314 
+ Anidación 4 effect    -0.04919 0.0143  7.39 -3.450  0.0818. 
+ Forrajeo 4 effect     -0.02338 0.0145  8.29 -1.609  0.3627 
+ Percha 4 effect        0.00791 0.0122  5.37  0.651  0.7130 
+ Vocalización 4 effect -0.04336 0.0153  4.19 -2.839  0.1852 
+ Alimentación 5 effect -0.01866 0.0155 11.66 -1.205  0.4850 
+ Anidación 5 effect    -0.02777 0.0168 15.05 -1.649  0.3332 
+ Forrajeo 5 effect     -0.00197 0.0158 11.68 -0.124  0.9408 
+ Percha 5 effect        0.02933 0.0152 11.59  1.930  0.2800 
+ Vocalización 5 effect -0.02194 0.0198 10.53 -1.110  0.5209 
+
+Results are averaged over the levels of: Zona 
+Degrees-of-freedom method: satterthwaite 
+P value adjustment: fdr method for 25 tests
+
+
+
+datos <- read.csv("Datos")
+datos$Estrato <- as.factor(datos$Estrato)
+dat <- rep(datos$Actividad, datos$Individuos)
+dat1 <- rep(datos$Estrato, datos$Individuos)
+dat2 <- rep(datos$Zona, datos$Individuos)
+full <- data.frame(dat2, dat1, dat)
+colnames(full) <- c("Zona", "Estrato", "Actividad")
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+png("Estratos.png", height = 600, width = 680)
+ggplot(data = full, mapping = aes(x = Estrato, fill = Actividad)) +
+   geom_bar(alpha = .3, position = "fill") +
+    labs(y = "Proporción") +
+      scale_fill_brewer(palette = "Pastel2") +
+       theme_classic()
+dev.off()
+
+png("Zonas.png", height = 600, width = 680)
+ggplot(data = full, mapping = aes(x = Zona, fill = Actividad)) +
+   geom_bar(alpha = .3, position = "fill") +
+    labs(y = "Proporción") +
+     scale_fill_grey() +
+      theme_classic()
+dev.off()
+
+png("Fullfilas.png", height = 600, width = 680)
+ggplot(data = full, mapping = aes(x = Estrato, fill = Actividad)) +
+   geom_bar(alpha = .3, position = "fill") +
+    labs(y = "Proporción") +
+     scale_fill_grey() +
+      theme_classic() +
+        facet_grid(rows = vars(Zona))
+dev.off()
+
+png("Fullcolumnas.png", height = 600, width = 680)
+ggplot(data = full, mapping = aes(x = Estrato, fill = Actividad)) +
+   geom_bar(alpha = .3, position = "fill") +
+    labs(y = "Proporción") +
+     scale_fill_grey() +
+      theme_classic() +
+        facet_grid(cols = vars(Zona))
+dev.off()
